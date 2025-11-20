@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Update Personnel</title>
+  <style>
+    /* ... (Keep your existing CSS) ... */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --font-family: 'Inter', sans-serif;
+      --color-primary: #667eea;
+      --color-bg-page: #f3f4f6;
+      --color-white: #ffffff;
+      --color-text: #374151;
+      --color-danger: #ef4444;
+    }
+    body { font-family: var(--font-family); background: var(--color-bg-page); padding: 20px; color: var(--color-text); }
+    .container { max-width: 800px; margin: 0 auto; background: var(--color-white); border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; }
+    .header h1 { font-size: 24px; font-weight: 600; margin: 0; }
+    .form-body { padding: 32px; max-height: calc(100vh - 200px); overflow-y: auto; }
+    .section-card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
+    .section-header { padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; display: flex; gap: 12px; align-items: center; }
+    .section-header h3 { font-size: 18px; font-weight: 600; margin: 0; }
+    .section-content { padding: 24px; }
+    .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 14px; font-weight: 500; }
+    .form-group label.required::after { content: "*"; color: var(--color-danger); margin-left: 4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; width: 100%;
+    }
+    .preview-box { background: #f9fafb; padding: 15px; border-radius: 6px; border: 1px solid #e5e7eb; margin-top: 15px; }
+    .preview-box ul { padding-left: 20px; margin: 0; }
+    .preview-box li { margin-bottom: 4px; font-size: 14px; }
+    .hidden { display: none !important; }
+    .btn { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; font-size: 14px; }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-light { background: #f3f4f6; color: #374151; }
+    .sticky-footer { position: sticky; bottom: 0; background: white; padding: 20px 32px; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px; }
+    .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 999; color: white; flex-direction: column; }
+    .loading-overlay.show { display: flex; }
+    .spinner { width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 10px; }
+    .warning-box { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 15px; border-radius: 6px; margin-top: 15px; font-size: 14px; }
+    .checkbox-group { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 6px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header"><h1>📝 Update Personnel Information</h1></div>
+    <form id="updateForm">
+      <div class="form-body">
+        
+        <div class="section-card">
+          <div class="section-header"><span>👤</span><h3>Select Principal</h3></div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="required">Principal</label>
+              <select id="principalSelect" required><option value="">Loading...</option></select>
+            </div>
+            <div id="currentInfo" class="hidden">
+              <div class="form-group"><label>Current Post</label><input type="text" id="currentPost" readonly></div>
+              <div class="form-group"><label>Original Departure</label><input type="text" id="originalDeparture" readonly></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="updateActionSection" class="section-card hidden">
+          <div class="section-header"><span>✏️</span><h3>Update Action</h3></div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="required">Select Action</label>
+              <select id="extended" required>
+                <option value="" selected disabled>Select Status...</option>
+                <option value="Yes">Extend Tour of Duty</option>
+                <option value="No">Withdraw Principal & Family</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="extensionSection" class="section-card hidden">
+          <div class="section-header"><span>📅</span><h3>Extension Information</h3></div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="required">New Departure Date</label>
+              <input type="date" id="newDeparture">
+            </div>
+            <div class="form-group">
+              <label class="required">Extension Details</label>
+              <textarea id="extensionDetails" rows="3" placeholder="Reason for extension..."></textarea>
+            </div>
+
+            <div class="warning-box">
+              <strong>⚠️ Warning:</strong> This is also recorded to the extension details for the active family members. This cannot be undone.
+            </div>
+
+            <div id="familyPreview" class="preview-box hidden">
+              <h4>📋 Status of Residency Extension Preview</h4>
+              <div id="activeFamily">
+                <strong style="color: #28a745;">✅ Will extend residency for:</strong>
+                <ul id="activeFamilyList"></ul>
+              </div>
+              <div id="archivedFamily" class="hidden" style="margin-top: 15px;">
+                <strong style="color: #856404;">⚠️ Skipped (already withdrawn):</strong>
+                <ul id="archivedFamilyList"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="withdrawalSection" class="section-card hidden">
+          <div class="section-header" style="background:#fef2f2;"><span>🚪</span><h3 style="color:#991b1b;">Withdraw Family</h3></div>
+          <div class="section-content">
+            <div class="form-group">
+              <label class="required">Departure Date</label>
+              <input type="date" id="familyDepartureDate">
+            </div>
+            <div class="form-group">
+              <label class="required">Reason</label>
+              <textarea id="familyWithdrawalReason" rows="2"></textarea>
+            </div>
+            <div id="familyMembersList" class="preview-box">
+               <h4>👥 Family Members to be Withdrawn:</h4>
+               <ul id="withdrawalPreview"></ul>
+            </div>
+            <div class="checkbox-group" style="background: #fff3cd; border: 2px solid #ffc107; margin-top: 20px;">
+              <input type="checkbox" id="confirmWithdrawal"> 
+              <label for="confirmWithdrawal" style="color: #856404; font-weight: 600;">I confirm I want to withdraw this family.</label>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <div class="sticky-footer">
+        <button type="button" class="btn btn-light" onclick="google.script.host.close()">Cancel</button>
+        <button type="button" id="saveExtensionBtn" class="btn btn-primary hidden">💾 Save Extension</button>
+        <button type="button" id="withdrawFamilyBtn" class="btn btn-danger hidden">🚪 Withdraw</button>
+      </div>
+    </form>
+  </div>
+
+  <div id="loading" class="loading-overlay">
+    <div class="spinner"></div><div id="loadingMessage">Processing...</div>
+  </div>
+  
+  <div id="toast" class="toast"><span id="toastMessage"></span></div>
+
+  <script>
+    let principalsList = [];
+    let currentPrincipalData = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadPrincipalsList();
+      document.getElementById('principalSelect').addEventListener('change', handlePrincipalChange);
+      document.getElementById('extended').addEventListener('change', handleExtendedChange);
+      
+      // CHANGED LISTENER: Listen to click on button, NOT submit on form
+      document.getElementById('saveExtensionBtn').addEventListener('click', handleFormSubmit); 
+      document.getElementById('withdrawFamilyBtn').addEventListener('click', handleWithdrawal);
+    });
+
+    function loadPrincipalsList() {
+      showLoading('Loading principals...');
+      google.script.run.withSuccessHandler(function(list) {
+        hideLoading();
+        const select = document.getElementById('principalSelect');
+        select.innerHTML = '<option value="">Choose Principal...</option>';
+        list.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.fullName;
+          opt.textContent = p.fullName;
+          select.appendChild(opt);
+        });
+      }).withFailureHandler(function(err) {
+         hideLoading();
+         showToast("Error loading principals: " + err.message, "error");
+      }).getExistingPrincipalsFromTracking();
+    }
+
+    function handlePrincipalChange() {
+      const val = this.value;
+      if(!val) return;
+      showLoading('Loading info...');
+      
+      // Reset UI
+      document.getElementById('currentInfo').classList.add('hidden');
+      document.getElementById('updateActionSection').classList.add('hidden');
+      document.getElementById('extensionSection').classList.add('hidden');
+      document.getElementById('withdrawalSection').classList.add('hidden');
+      document.getElementById('saveExtensionBtn').classList.add('hidden');
+      document.getElementById('withdrawFamilyBtn').classList.add('hidden');
+      document.getElementById('extended').value = "";
+
+      google.script.run.withSuccessHandler(function(data) {
+        hideLoading();
+        currentPrincipalData = data;
+        displayPersonnelData(data);
+        loadFamilyStatus(val);
+        loadFamilyForWithdrawal(val);
+      }).withFailureHandler(function(err) {
+         hideLoading();
+         showToast("Error loading data: " + err.message, "error");
+      }).getPersonnelDataForUpdate(val);
+    }
+
+    function displayPersonnelData(data) {
+      document.getElementById('currentInfo').classList.remove('hidden');
+      document.getElementById('updateActionSection').classList.remove('hidden');
+      document.getElementById('currentPost').value = data.postStation || '';
+      document.getElementById('originalDeparture').value = data.originalDeparture || '';
+      
+      // Pre-fill
+      document.getElementById('newDeparture').value = data.newDeparture || '';
+      document.getElementById('extensionDetails').value = data.extensionDetails || '';
+    }
+    
+    function loadFamilyStatus(principalName) {
+      google.script.run.withSuccessHandler(function(status) {
+          const activeList = document.getElementById('activeFamilyList');
+          const archivedList = document.getElementById('archivedFamilyList');
+          activeList.innerHTML = '';
+          archivedList.innerHTML = '';
+
+          if (status.active && status.active.length > 0) {
+            document.getElementById('familyPreview').classList.remove('hidden');
+            status.active.forEach(m => {
+              const li = document.createElement('li');
+              li.innerHTML = `✅ ${escapeHtml(m.name)} (${m.type})`;
+              activeList.appendChild(li);
+            });
+          } else {
+             const li = document.createElement('li');
+             li.innerHTML = '<em style="color: #6c757d;">No active family members.</em>';
+             activeList.appendChild(li);
+          }
+          
+          if (status.archived && status.archived.length > 0) {
+             document.getElementById('archivedFamily').classList.remove('hidden');
+             status.archived.forEach(m => {
+                const li = document.createElement('li');
+                li.innerHTML = `❌ ${escapeHtml(m.name)} (${m.type})`;
+                archivedList.appendChild(li);
+             });
+          } else {
+             document.getElementById('archivedFamily').classList.add('hidden');
+          }
+      }).getFamilyMembersStatus(principalName);
+    }
+
+    function loadFamilyForWithdrawal(principalName) {
+       google.script.run.withSuccessHandler(function(data) {
+          const list = document.getElementById('withdrawalPreview');
+          list.innerHTML = '';
+          const pItem = document.createElement('li');
+          pItem.innerHTML = `<strong>👤 ${escapeHtml(data.principalName)}</strong> (Principal)`;
+          list.appendChild(pItem);
+          
+          if(data.active) {
+             data.active.forEach(m => {
+                const li = document.createElement('li');
+                li.innerHTML = `${escapeHtml(m.name)} <span style="color:#6c757d">(${m.type})</span>`;
+                list.appendChild(li);
+             });
+          }
+       }).getFamilyMembersForWithdrawal(principalName);
+    }
+
+    function handleExtendedChange() {
+      const val = this.value;
+      const extSec = document.getElementById('extensionSection');
+      const witSec = document.getElementById('withdrawalSection');
+      const saveBtn = document.getElementById('saveExtensionBtn');
+      const witBtn = document.getElementById('withdrawFamilyBtn');
+
+      extSec.classList.add('hidden');
+      witSec.classList.add('hidden');
+      saveBtn.classList.add('hidden');
+      witBtn.classList.add('hidden');
+
+      if(val === 'Yes') {
+        extSec.classList.remove('hidden');
+        saveBtn.classList.remove('hidden');
+      } else if(val === 'No') {
+        witSec.classList.remove('hidden');
+        witBtn.classList.remove('hidden');
+      }
+    }
+
+    function handleFormSubmit(e) {
+      if(e) e.preventDefault(); // Prevent just in case
+
+      const principalName = document.getElementById('principalSelect').value;
+      const extended = document.getElementById('extended').value;
+      const newDeparture = document.getElementById('newDeparture').value;
+      const extensionDetails = document.getElementById('extensionDetails').value.trim();
+
+      if (!principalName || extended !== 'Yes') {
+         showToast("Please select a principal and set Extended to 'Yes'", "error");
+         return;
+      }
+      if (!newDeparture) {
+         showToast("Please enter new departure date", "error");
+         return;
+      }
+      if (!extensionDetails) {
+         showToast("Please enter extension details", "error");
+         return;
+      }
+
+      const updateData = {
+        extended: extended,
+        newDeparture: newDeparture,
+        extensionDetails: extensionDetails,
+        appendExtension: false
+      };
+
+      showLoading('Saving extension...');
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          hideLoading();
+          if (result.success) {
+            showToast(result.message, 'success');
+            setTimeout(function() { google.script.host.close(); }, 2000);
+          } else {
+            showToast(result.message, 'error');
+          }
+        })
+        .withFailureHandler(function(error) {
+          hideLoading();
+          showToast('Error: ' + error.message, 'error');
+        })
+        .updatePersonnelData(principalName, updateData);
+    }
+    
+    function handleWithdrawal() {
+       const principalName = document.getElementById('principalSelect').value;
+       const departureDate = document.getElementById('familyDepartureDate').value;
+       const reason = document.getElementById('familyWithdrawalReason').value.trim();
+       const confirmed = document.getElementById('confirmWithdrawal').checked;
+       
+       if(!principalName || !departureDate || !reason || !confirmed) {
+          showToast("Please fill all withdrawal fields and confirm.", "error");
+          return;
+       }
+       
+       showLoading('Withdrawing family...');
+       google.script.run.withSuccessHandler(function(res) {
+          hideLoading();
+          if(res.success) {
+             showToast(res.message, 'success');
+             setTimeout(function() { google.script.host.close(); }, 2000);
+          } else {
+             showToast(res.message, 'error');
+          }
+       }).withFailureHandler(function(err) {
+          hideLoading();
+          showToast("Error: " + err.message, "error");
+       }).withdrawEntireFamily(principalName, departureDate, reason);
+    }
+
+    function showLoading(msg) {
+      document.getElementById('loadingMessage').textContent = msg;
+      document.getElementById('loading').classList.add('show');
+    }
+    function hideLoading() {
+      document.getElementById('loading').classList.remove('show');
+    }
+    function showToast(msg, type) {
+      const t = document.getElementById('toast');
+      document.getElementById('toastMessage').textContent = msg;
+      t.className = 'toast ' + type + ' show';
+      setTimeout(() => t.classList.remove('show'), 5000);
+    }
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
