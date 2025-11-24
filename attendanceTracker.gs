@@ -74,11 +74,6 @@ function updatePersonnelData(principalName, updateData) {
     }
     if (updateData.extensionDetails !== undefined) {
       let newDetails = updateData.extensionDetails;
-      // Note: appendExtension logic was removed, uncomment if needed
-      // if (updateData.appendExtension) { 
-      //   const existingDetails = sheet.getRange(principalRow, pCols.COL_PRINCIPAL_EXTENSION_DETAILS).getValue();
-      //   newDetails = existingDetails + '\n' + updateData.extensionDetails;
-      // }
       updates.push({ row: principalRow, col: pCols.COL_PRINCIPAL_EXTENSION_DETAILS, value: newDetails });
     }
 
@@ -109,16 +104,7 @@ function updatePersonnelData(principalName, updateData) {
     // 4. Execute batch update
     batchUpdateCells(SYSTEM_CONFIG.SHEETS.PERSONNEL_TRACKING, updates); // From DATA_ACCESS.gs
 
-    /* 5. Handle Attendance Extension
-    if (updateData.extendAttendance === true) {
-      const attendanceResult = extendAttendanceForFamily(principalName);
-      return {
-        success: true,
-        message: `✅ Extension recorded successfully!\n\n${attendanceResult.message}`,
-        attendanceExtended: attendanceResult.extended,
-        attendanceSkipped: attendanceResult.skipped
-      };
-    }*/
+    // 5. (Optional) Handle Attendance Extension - Removed as requested
     
     return {
       success: true,
@@ -188,131 +174,6 @@ function getExistingPrincipalsFromTracking() {
   } catch (error) {
     console.error('Error in getExistingPrincipalsFromTracking:', error);
     return []; // Return empty on error
-  }
-}
-
-/**
- * Extend status of residency for principal's active family members
- */
-function extendAttendanceForFamily(principalName) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const attendanceSheet = ss.getSheetByName(SYSTEM_CONFIG.SHEETS.ATTENDANCE_LOG);
-    const archiveSheet = ss.getSheetByName(SYSTEM_CONFIG.SHEETS.ARCHIVED_WITHDRAWALS);
-    if (!attendanceSheet) {
-      return {
-        success: false,
-        message: 'Status of Residency sheet not found',
-        extended: 0,
-        skipped: 0
-      };
-    }
-
-    // Get archived pairs
-    const archivedPairs = new Set();
-    if (archiveSheet && archiveSheet.getLastRow() >= 2) {
-      const archiveData = archiveSheet.getRange(2, 1, archiveSheet.getLastRow() - 1, 1).getValues();
-      archiveData.forEach(row => {
-        if (row[0]) archivedPairs.add(row[0].toString().trim());
-      });
-    }
-    
-    // Find all family members from the cached data
-    const allPersonnel = getAllPersonnelDataCached(); // from DATA_ACCESS.gs
-    const principalData = allPersonnel.filter(p => p.principal.fullName === principalName);
-
-    const activeFamilyMembers = [];
-    const archivedFamilyMembers = [];
-    const seenMembers = new Set(); // To handle duplicates if any
-
-    principalData.forEach(p => {
-      // Check dependents
-      p.dependents.forEach(dep => {
-        const memberName = (dep.fullName || '').toString().trim();
-        if (!memberName || seenMembers.has(memberName)) return;
-        seenMembers.add(memberName);
-        
-        const pairName = `${principalName} - ${memberName}`;
-        if (archivedPairs.has(pairName)) {
-          archivedFamilyMembers.push({ name: memberName, type: 'Dependent', pairName: pairName });
-        } else {
-          activeFamilyMembers.push({ name: memberName, type: 'Dependent', pairName: pairName });
-        }
-      });
-      
-      // Check staff
-      p.staff.forEach(staff => {
-        const memberName = (staff.fullName || '').toString().trim();
-        if (!memberName || seenMembers.has(memberName)) return;
-        seenMembers.add(memberName);
-
-        const pairName = `${principalName} - ${memberName}`;
-        if (archivedPairs.has(pairName)) {
-          archivedFamilyMembers.push({ name: memberName, type: 'Staff', pairName: pairName });
-        } else {
-          activeFamilyMembers.push({ name: memberName, type: 'Staff', pairName: pairName });
-        }
-      });
-    });
-
-    // Record attendance for active members only
-    const currentDate = new Date();
-    let recordedCount = 0;
-    
-    activeFamilyMembers.forEach(member => {
-      try {
-        const state = getPairState(member.pairName);
-        const quarterValue = state.currentQuarter || 'Q1';
-        
-        const nextRow = attendanceSheet.getLastRow() + 1;
-        attendanceSheet.getRange(nextRow, 1, 1, 5).setValues([[
-          member.pairName,
-          quarterValue,
-          SYSTEM_CONFIG.ATTENDANCE.STATUS.AT_POST,
-          'Principal extension - auto-recorded',
-          currentDate
-        ]]);
-        
-        attendanceSheet.getRange(nextRow, 5).setNumberFormat('yyyy-mm-dd hh:mm:ss');
-        recordedCount++;
-        
-        Logger.log(`✅ Recorded status of residency for: ${member.pairName}`);
-      } catch (error) {
-        Logger.log(`⚠️ Error recording status of residency for ${member.pairName}: ${error}`);
-      }
-    });
-
-    // Build result message
-    let message = '';
-    if (recordedCount > 0) {
-      message += `✅ Status of Residency extended for ${recordedCount} active family member(s)`;
-    }
-    
-    if (archivedFamilyMembers.length > 0) {
-      message += `\n⚠️ Skipped ${archivedFamilyMembers.length} archived member(s)`;
-    }
-    
-    if (recordedCount === 0 && archivedFamilyMembers.length === 0) {
-      message = 'ℹ️ No active dependents/staff found to extend';
-    }
-    
-    Logger.log(`Extension summary: ${recordedCount} extended, ${archivedFamilyMembers.length} skipped`);
-    return {
-      success: true,
-      message: message,
-      extended: recordedCount,
-      skipped: archivedFamilyMembers.length,
-      activeMembers: activeFamilyMembers,
-      archivedMembers: archivedFamilyMembers
-    };
-  } catch (error) {
-    console.error('Error extending family status of residency:', error);
-    return {
-      success: false,
-      message: `Failed to extend status of residency: ${error.message}`,
-      extended: 0,
-      skipped: 0
-    };
   }
 }
 
@@ -436,7 +297,29 @@ function withdrawEntireFamily(principalName, departureDate, reason) {
     });
 
     SpreadsheetApp.flush();
-    
+
+    // ================= AUDIT LOG INTEGRATION =================
+    try {
+      if (typeof logChangeLocal === 'function') {
+        logChangeLocal({
+          timestamp: new Date(),
+          sheetName: SYSTEM_CONFIG.SHEETS.PERSONNEL_TRACKING,
+          cellAddress: 'MULTIPLE_SHEETS',
+          oldValue: 'Active',
+          newValue: 'Withdrawn',
+          user: Session.getActiveUser().getEmail(),
+          changeType: 'UI_WITHDRAWAL',
+          formula: '',
+          details: `Withdrawn Principal: ${principalName} & Family. Reason: ${reason}`,
+          userType: 'EDITOR'
+        });
+        flushLogs();
+      }
+    } catch (e) {
+      console.error("Withdrawal logging failed: " + e);
+    }
+    // ================================================== 
+       
     return {
       success: true,
       message: `✅ Successfully withdrawn ${withdrawnCount} person(s) (including principal)`,
@@ -453,7 +336,6 @@ function withdrawEntireFamily(principalName, departureDate, reason) {
 
 /**
  * Get status of family members for Update Form
- * This function is now CORRECTED
  */
 function getFamilyMembersStatus(principalName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -553,12 +435,11 @@ function getFamilyMembersForWithdrawal(principalName) {
 }
 
 // ============================================================================
-// ATTENDANCE TRACKER LOGIC
+// LOGIC
 // ============================================================================
 
 /**
  * Saves an attendance record.
- * This function is now CORRECTED.
  */
 function saveAttendance(pairName, status, remarks) {
   try {
@@ -597,6 +478,26 @@ function saveAttendance(pairName, status, remarks) {
       // Clear cache because this is a data change
       clearDataCache();
       Logger.log('Saved to both Archive and Status of Residency Log');
+      
+      // Audit Log for Withdrawal
+      try {
+         if (typeof logChangeLocal === 'function') {
+            logChangeLocal({
+              timestamp: new Date(),
+              sheetName: SYSTEM_CONFIG.SHEETS.ATTENDANCE_LOG,
+              cellAddress: 'ROW_' + (logLastRow + 1),
+              oldValue: '',
+              newValue: status,
+              user: Session.getActiveUser().getEmail(),
+              changeType: 'UI_ATTENDANCE_WITHDRAWAL',
+              formula: '',
+              details: `Withdrawn via Attendance: ${pairName}`,
+              userType: 'EDITOR'
+            });
+            flushLogs();
+         }
+      } catch (e) { console.error(e); }
+      
       return { success: true, message: pairName + ' archived as withdrawn.' };
     }
     
@@ -605,6 +506,28 @@ function saveAttendance(pairName, status, remarks) {
     logSheet.getRange(logLastRow + 1, 1, 1, 5).setValues([[
       pairName, quarter, status, remarks || '', today
     ]]);
+    
+    // ================= AUDIT LOG INTEGRATION =================
+    try {
+       if (typeof logChangeLocal === 'function') {
+          logChangeLocal({
+            timestamp: new Date(),
+            sheetName: SYSTEM_CONFIG.SHEETS.ATTENDANCE_LOG,
+            cellAddress: 'ROW_' + (logLastRow + 1),
+            oldValue: '',
+            newValue: status,
+            user: Session.getActiveUser().getEmail(),
+            changeType: 'UI_ATTENDANCE',
+            formula: '',
+            details: `Attendance recorded for: ${pairName} (${quarter})`,
+            userType: 'EDITOR'
+          });
+          flushLogs();
+       }
+    } catch (e) {
+      console.error("Attendance logging failed: " + e);
+    }
+    // ==================================================
     
     Logger.log('Recorded to status of residency as ' + quarter);
     return {
@@ -618,10 +541,8 @@ function saveAttendance(pairName, status, remarks) {
   }
 }
 
-
 /**
  * Gets the last state (quarter, date) for a given pair.
- * This function is CORRECTED.
  */
 function getPairState(pairName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -721,7 +642,6 @@ function calculateWindowHelper(lastRecord, today) {
 
 /**
  * Loads all active dependent/staff pairs for the Attendance Tracker UI.
- * This function is now CORRECTED.
  */
 function loadAttendanceData() {
   Logger.log('=== loadAttendanceData START ===');
