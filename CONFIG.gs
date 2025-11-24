@@ -1,5 +1,5 @@
 // ============================================================================
-// UNIFIED CONFIGURATION - Single Source of Truth
+// UNIFIED CONFIGURATION
 // ============================================================================
 
 const SYSTEM_CONFIG = {
@@ -190,7 +190,7 @@ const SYSTEM_CONFIG = {
   // ==================== VALIDATION RULES ====================
   VALIDATION: {
     MIN_AGE_DEPENDENT: 0,
-    MAX_AGE_DEPENDENT: 25,
+    MAX_AGE_DEPENDENT: 100,
     MIN_AGE_PRINCIPAL: 21,
     MAX_AGE_PRINCIPAL: 70,
     MIN_AGE_STAFF: 24,
@@ -267,7 +267,7 @@ const SYSTEM_CONFIG = {
   // ==================== SECURITY ====================
   SECURITY: {
     AUDIT_ENABLED: true,
-    AUDIT_RETENTION_DAYS: 730,
+  //AUDIT_RETENTION_DAYS: 730,
     FILE_SHARING: {
       ACCESS: DriveApp.Access.DOMAIN_WITH_LINK,
       PERMISSION: DriveApp.Permission.VIEW
